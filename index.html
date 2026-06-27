@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5eadc" />
+    <title>Белла Вита Парфюм</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%237f2639'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-family='Georgia' font-size='24' font-weight='700' fill='%23fffaf3'%3EBV%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="icon-button" id="backButton" type="button" aria-label="Назад">
+          <span aria-hidden="true">‹</span>
+        </button>
+        <div>
+          <p class="eyebrow">Нишевая парфюмерия</p>
+          <h1>Белла Вита Парфюм</h1>
+        </div>
+        <button class="icon-button" id="profileShortcut" type="button" aria-label="Профиль">
+          <span aria-hidden="true">♡</span>
+        </button>
+      </header>
+
+      <main id="app" class="screen"></main>
+
+      <nav class="tabbar" aria-label="Основная навигация">
+        <button class="tab is-active" type="button" data-route="home">
+          <span aria-hidden="true">⌂</span>
+          <span>Главная</span>
+        </button>
+        <button class="tab" type="button" data-route="catalog">
+          <span aria-hidden="true">⌕</span>
+          <span>Каталог</span>
+        </button>
+        <button class="tab" type="button" data-route="profile">
+          <span aria-hidden="true">◌</span>
+          <span>Кабинет</span>
+        </button>
+        <button class="tab" type="button" data-route="delivery">
+          <span aria-hidden="true">⇢</span>
+          <span>Доставка</span>
+        </button>
+      </nav>
+    </div>
+
+    <template id="homeTemplate">
+      <section class="hero">
+        <img src="./assets/perfume-hero.png" alt="Флакон нишевого парфюма" />
+        <div class="hero-copy">
+          <p class="pill">Подбор за 1 минуту</p>
+          <h2>Найдите аромат для себя или в подарок</h2>
+          <p>Ответьте на пару вопросов, а мы покажем женские, мужские и универсальные ароматы по настроению.</p>
+          <div class="hero-actions">
+            <button class="primary-button" type="button" data-action="start-picker">Подобрать аромат</button>
+            <button class="ghost-button" type="button" data-route="catalog">Каталог</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Популярные подборки</h3>
+          <button class="text-button" type="button" data-route="catalog">Все</button>
+        </div>
+        <div class="choice-grid">
+          <button class="choice" type="button" data-filter="female">Для нее</button>
+          <button class="choice" type="button" data-filter="male">Для него</button>
+          <button class="choice" type="button" data-filter="gift">В подарок</button>
+          <button class="choice" type="button" data-filter="unisex">Унисекс</button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Рекомендации</h3>
+          <span class="soft-label">Bella Vita</span>
+        </div>
+        <div id="featuredList" class="product-list"></div>
+      </section>
+    </template>
+
+    <template id="catalogTemplate">
+      <section class="section tight">
+        <div class="section-title">
+          <h2>Каталог</h2>
+          <span id="catalogCount" class="soft-label"></span>
+        </div>
+        <div class="filter-row" role="tablist" aria-label="Фильтр каталога">
+          <button class="filter is-active" type="button" data-catalog-filter="all">Все</button>
+          <button class="filter" type="button" data-catalog-filter="female">Женские</button>
+          <button class="filter" type="button" data-catalog-filter="male">Мужские</button>
+          <button class="filter" type="button" data-catalog-filter="gift">Подарок</button>
+        </div>
+        <label class="search">
+          <span>⌕</span>
+          <input id="searchInput" type="search" placeholder="Поиск по нотам или названию" autocomplete="off" />
+        </label>
+      </section>
+      <section id="catalogList" class="product-list catalog"></section>
+    </template>
+
+    <template id="profileTemplate">
+      <section class="profile-card">
+        <div class="avatar" id="avatar">BV</div>
+        <div>
+          <p class="eyebrow">Личный кабинет</p>
+          <h2 id="profileName">Гость</h2>
+          <p id="profileMeta">Войдите через Telegram, чтобы сохранить данные.</p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Корзина</h3>
+          <span id="cartCount" class="soft-label">0</span>
+        </div>
+        <div id="cartList" class="product-list"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Вход через Telegram</h3>
+          <span id="authState" class="soft-label">Не выполнен</span>
+        </div>
+        <p class="body-copy">В Telegram Mini App данные профиля берутся из вашего личного Telegram после подтверждения входа. Для проверки в браузере доступен демо-вход.</p>
+        <button class="primary-button full" type="button" id="telegramLogin">Подтвердить вход</button>
+      </section>
+
+      <section class="section">
+        <h3>Контакты</h3>
+        <form id="profileForm" class="form">
+          <label>
+            <span>Имя</span>
+            <input id="nameInput" name="name" type="text" placeholder="Ваше имя" />
+          </label>
+          <label>
+            <span>Телефон</span>
+            <input id="phoneInput" name="phone" type="tel" placeholder="+7 999 000-00-00" />
+          </label>
+          <label>
+            <span>Telegram</span>
+            <input id="telegramInput" name="telegram" type="text" placeholder="@username" />
+          </label>
+          <button class="primary-button full" type="submit">Сохранить</button>
+        </form>
+      </section>
+
+      <section class="section">
+        <div class="section-title">
+          <h3>Избранное</h3>
+          <span id="favoriteCount" class="soft-label">0</span>
+        </div>
+        <div id="favoriteList" class="product-list"></div>
+      </section>
+    </template>
+
+    <template id="deliveryTemplate">
+      <section class="delivery-hero">
+        <p class="pill">Доставка и оплата</p>
+        <h2>Бережно доставим аромат по городу и России</h2>
+        <p>После оформления менеджер уточнит наличие, адрес и удобный способ получения заказа.</p>
+      </section>
+
+      <section class="section info-list">
+        <article>
+          <strong>Как доставляете заказы?</strong>
+          <span>По России отправляем СДЭК, Почтой России, Яндексом или Озон по тарифам сервисов. По Москве в пределах МКАД доступна курьерская доставка.</span>
+        </article>
+        <article>
+          <strong>Каковы сроки доставки?</strong>
+          <span>По Москве — 2–3 рабочих дня. По России — в среднем 3–5 рабочих дней, срок зависит от региона.</span>
+        </article>
+        <article>
+          <strong>Можно ли получить заказ день в день в Москве?</strong>
+          <span>Да, если товар в наличии. Возможен самовывоз по предварительной договоренности или доставка Яндекс-курьером.</span>
+        </article>
+        <article>
+          <strong>Если аромат нужен в подарок?</strong>
+          <span>Мы поможем оформить заказ красиво: подберем подарочную упаковку, добавим открытку и заранее согласуем с вами все детали. Получится не просто парфюм, а продуманный жест внимания.</span>
+        </article>
+        <article>
+          <strong>Есть ли у вас офлайн-магазин?</strong>
+          <span>Сейчас офлайн-магазина нет. В 2022 году бутик в Москве пришлось закрыть по независящим от нас причинам, но мы работаем над возобновлением офлайн-продаж.</span>
+        </article>
+        <article>
+          <strong>А самовывоз возможен?</strong>
+          <span>Да, по Москве — по предварительной договоренности. Напишите нам, и мы согласуем дату и время встречи.</span>
+        </article>
+      </section>
+    </template>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
