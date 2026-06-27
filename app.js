@@ -81,6 +81,7 @@ const state = {
   route: "home",
   catalogFilter: "all",
   search: "",
+  recommendedIds: null,
   favorites: migrateFavorites(read("bellaVitaFavorites", [])),
   cart: migrateFavorites(read("bellaVitaCart", [])),
   profile: read("bellaVitaProfile", null),
@@ -88,6 +89,45 @@ const state = {
 
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
+const pickerModal = document.querySelector("#pickerModal");
+const pickerQuestions = [
+  {
+    id: "gender",
+    eyebrow: "Вопрос 1 из 3",
+    title: "Для кого подбираем аромат?",
+    subtitle: "Так мы сразу покажем более точные рекомендации.",
+    options: [
+      { label: "Для нее", value: "female" },
+      { label: "Для него", value: "male" },
+    ],
+  },
+  {
+    id: "gift",
+    eyebrow: "Вопрос 2 из 3",
+    title: "Это подарок?",
+    subtitle: "Подарочные ароматы выбираем более универсальными и эффектными.",
+    options: [
+      { label: "Да", value: "yes" },
+      { label: "Нет", value: "no" },
+    ],
+  },
+  {
+    id: "mood",
+    eyebrow: "Вопрос 3 из 3",
+    title: "Какое настроение хочется?",
+    subtitle: "Если сомневаетесь, выбирайте то, что ближе по ощущению.",
+    options: [
+      { label: "Свежий", value: "fresh" },
+      { label: "Нежный", value: "soft" },
+      { label: "Яркий", value: "bright" },
+      { label: "Теплый", value: "warm" },
+    ],
+  },
+];
+const pickerState = {
+  step: 0,
+  answers: {},
+};
 
 function read(key, fallback) {
   try {
@@ -117,6 +157,7 @@ function initTelegram() {
 function routeTo(route, options = {}) {
   state.route = route;
   if (options.filter) state.catalogFilter = options.filter;
+  if (options.clearRecommendations) state.recommendedIds = null;
   render();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -137,29 +178,23 @@ function renderHome() {
   renderProducts(document.querySelector("#featuredList"), products.slice(0, 3));
 
   document.querySelector("[data-action='start-picker']").addEventListener("click", () => {
-    const answer = prompt("Для кого подбираем аромат: для нее, для него или подарок?");
-    const normalized = (answer || "").toLowerCase();
-    const filter = normalized.includes("него")
-      ? "male"
-      : normalized.includes("подар")
-        ? "gift"
-        : "female";
-    routeTo("catalog", { filter });
+    openPicker();
   });
 
   document.querySelectorAll(".choice").forEach((choice) => {
-    choice.addEventListener("click", () => routeTo("catalog", { filter: choice.dataset.filter }));
+    choice.addEventListener("click", () => routeTo("catalog", { filter: choice.dataset.filter, clearRecommendations: true }));
   });
 }
 
 function renderCatalog() {
   const filtered = getFilteredProducts();
-  document.querySelector("#catalogCount").textContent = `${filtered.length} ароматов`;
+  document.querySelector("#catalogCount").textContent = state.recommendedIds ? `подобрано ${filtered.length}` : `${filtered.length} ароматов`;
   renderProducts(document.querySelector("#catalogList"), filtered);
 
   document.querySelectorAll("[data-catalog-filter]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.catalogFilter === state.catalogFilter);
+    button.classList.toggle("is-active", !state.recommendedIds && button.dataset.catalogFilter === state.catalogFilter);
     button.addEventListener("click", () => {
+      state.recommendedIds = null;
       state.catalogFilter = button.dataset.catalogFilter;
       renderCatalog();
     });
@@ -176,14 +211,98 @@ function renderCatalog() {
 
 function getFilteredProducts() {
   const query = state.search.trim().toLowerCase();
-  return products.filter((product) => {
+  const filtered = products.filter((product) => {
+    const matchesRecommendation = !state.recommendedIds || state.recommendedIds.includes(product.id);
     const matchesFilter =
       state.catalogFilter === "all" ||
       product.gender === state.catalogFilter ||
       product.mood.includes(state.catalogFilter);
     const searchable = `${product.name} ${product.notes} ${product.description}`.toLowerCase();
-    return matchesFilter && (!query || searchable.includes(query));
+    return matchesRecommendation && matchesFilter && (!query || searchable.includes(query));
   });
+  if (!state.recommendedIds) return filtered;
+  return filtered.sort((a, b) => state.recommendedIds.indexOf(a.id) - state.recommendedIds.indexOf(b.id));
+}
+
+function openPicker() {
+  pickerState.step = 0;
+  pickerState.answers = {};
+  pickerModal.classList.add("is-visible");
+  pickerModal.setAttribute("aria-hidden", "false");
+  renderPicker();
+}
+
+function closePicker() {
+  pickerModal.classList.remove("is-visible");
+  pickerModal.setAttribute("aria-hidden", "true");
+  pickerModal.innerHTML = "";
+}
+
+function renderPicker() {
+  const question = pickerQuestions[pickerState.step];
+  pickerModal.innerHTML = `
+    <div class="picker-backdrop" data-picker-close></div>
+    <section class="picker-sheet" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+      <div class="picker-header">
+        <span class="soft-label">${question.eyebrow}</span>
+        <button class="icon-button picker-close" type="button" data-picker-close aria-label="Закрыть">×</button>
+      </div>
+      <h2 id="pickerTitle">${question.title}</h2>
+      <p>${question.subtitle}</p>
+      <div class="picker-options">
+        ${question.options.map((option) => `<button class="picker-option" type="button" data-picker-value="${option.value}">${option.label}</button>`).join("")}
+      </div>
+    </section>
+  `;
+
+  pickerModal.querySelectorAll("[data-picker-close]").forEach((button) => {
+    button.addEventListener("click", closePicker);
+  });
+  pickerModal.querySelectorAll("[data-picker-value]").forEach((button) => {
+    button.addEventListener("click", () => answerPickerQuestion(question.id, button.dataset.pickerValue));
+  });
+}
+
+function answerPickerQuestion(id, value) {
+  pickerState.answers[id] = value;
+  if (pickerState.step < pickerQuestions.length - 1) {
+    pickerState.step += 1;
+    renderPicker();
+    return;
+  }
+
+  state.recommendedIds = pickRecommendedProducts(pickerState.answers).map((product) => product.id);
+  state.catalogFilter = "all";
+  state.search = "";
+  closePicker();
+  routeTo("catalog");
+  showToast("Подобрали ароматы по вашим ответам");
+}
+
+function pickRecommendedProducts(answers) {
+  const moodWords = {
+    fresh: ["свежий", "легкий", "день", "офис", "бергамот", "чай", "морская"],
+    soft: ["мяг", "неж", "пудр", "крем", "мускус", "инжир"],
+    bright: ["тренд", "фрукты", "розовый", "шлейф", "вечер", "ягод"],
+    warm: ["теплый", "ваниль", "амбра", "уд", "сандал", "кожа"],
+  };
+
+  return products
+    .map((product) => {
+      const text = `${product.name} ${product.brand || ""} ${product.mood.join(" ")} ${product.notes} ${product.description}`.toLowerCase();
+      let score = 0;
+      if (product.gender === answers.gender) score += 5;
+      if (product.gender === "unisex") score += 3;
+      if (answers.gift === "yes" && product.mood.includes("подарок")) score += 4;
+      if (answers.gift === "no" && !product.mood.includes("подарок")) score += 1;
+      (moodWords[answers.mood] || []).forEach((word) => {
+        if (text.includes(word)) score += 2;
+      });
+      return { product, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .map((item) => item.product);
 }
 
 function renderProducts(container, items, options = {}) {
